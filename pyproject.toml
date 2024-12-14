@@ -5,9 +5,19 @@ description = ""
 authors = ["kyriekevin <zyzkyrie@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+packages = [
+    { include = "src" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"
+huggingface-hub = "^0.26.2"
+pandas = "^2.2.3"
+pyarrow = "^18.1.0"
+ipykernel = "^6.29.5"
+torch = "^2.5.1"
+transformers = "^4.47.0"
+protobuf = "^5.29.1"
 
 
 [build-system]

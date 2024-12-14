@@ -1,4 +1,6 @@
 data
+models
 
 # python
 .python-version
+__pycache__
