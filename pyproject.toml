@@ -18,7 +18,14 @@ ipykernel = "^6.29.5"
 torch = "^2.5.1"
 transformers = "^4.47.0"
 protobuf = "^5.29.1"
+openai = "^1.58.1"
 
+
+[tool.poetry.group.dev.dependencies]
+notebook = "^7.3.2"
+nbclassic = "^1.1.0"
+jupyter-console = "^6.6.3"
+jupynium = "^0.2.5"
 
 [build-system]
 requires = ["poetry-core"]

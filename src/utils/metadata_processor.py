@@ -37,21 +37,30 @@ def add_metadata(
     Returns:
         Dictionary with metadata added.
     """
+
     def process_enum(value, enum_class):
         if isinstance(value, enum_class):
             return value.value
         if isinstance(value, str):
-            return enum_class[value.upper()].value if value.upper() in enum_class.__members__ else value
+            return (
+                enum_class[value.upper()].value
+                if value.upper() in enum_class.__members__
+                else value
+            )
         return value
 
     metadata = {
         "domain": process_enum(domain, Domain),
         "dataset": dataset,
-        **{k: v for k, v in [
-            ("source", source),
-            ("lang", process_enum(lang, Language)),
-            ("quality", quality)
-        ] if v is not None}
+        **{
+            k: v
+            for k, v in [
+                ("source", source),
+                ("lang", process_enum(lang, Language)),
+                ("quality", quality),
+            ]
+            if v is not None
+        },
     }
 
     item["metadata"] = metadata
