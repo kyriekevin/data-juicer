@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 
 def read_files(
-    input_folder: Union[str, Path], file_type: str = None
+    input_folder: Union[str, Path], file_type: str
 ) -> Iterator[Tuple[str, Any]]:
     """
     Read all files of a specific type in a folder.
@@ -117,3 +117,25 @@ def chunks(lst: List[Any], n: int) -> Iterator[List[Any]]:
 
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
+
+
+def load_json(
+    file_path: str, start_idx: int = 0, end_idx: int = -1
+) -> List[Dict[str, Any]]:
+    """
+    Load a JSON file.
+
+    Args:
+        file_path (str): The path to the JSON file.
+        start_idx (int): The start index of the data to load. Defaults to 0.
+        end_idx (int): The end index of the data to load. Defaults to -1.
+
+    Returns:
+        List[Dict[str, Any]]: The data loaded from the JSON file.
+    """
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    data = data[start_idx:end_idx]
+    return data
