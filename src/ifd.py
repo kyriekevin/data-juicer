@@ -1,95 +1,127 @@
-import argparse
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+import torch
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.config import PROMPT_DICT_NONE
-from src.perplexity import get_perplexity
-from src.utils.file_io import load_json
-from src.utils.util import get_device
+from src.config import ALPACA_PROMPT, SHAREGPT_PROMPT
 
 
-def args_parse():
+def get_perplexity(
+    model,
+    tokenizer,
+    text: str,
+    max_length: int,
+    device: str,
+    target_span: Optional[str] = None,
+) -> tuple[float, float]:
     """
-    Parse the command line arguments.
+    Get the perplexity of the given text.
+
+    Args:
+        tokenizer (transformers.PreTrainedTokenizer): Tokenizer to encode the text.
+        model (transformers.PreTrainedModel): Model to compute the perplexity.
+        text (str): Text to compute the perplexity.
+        max_length (int): Maximum length of the input sequence.
+        device (str): Device to be used for training and inference.
+        target_span (Optional[str], optional): Target span to mask. Defaults to None.
 
     Returns:
-        argparse.Namespace: The parsed command line arguments.
+        tuple[float, float]: Perplexity and loss of the given text.
     """
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str)
-    parser.add_argument("--data_path", type=str)
-    parser.add_argument("--start_idx", type=int, default=0)
-    parser.add_argument("--end_idx", type=int, default=-1)
-    parser.add_argument("--max_length", type=int, default=1024)
+    try:
+        input_ids = tokenizer.encode(
+            text, return_tensors="pt", truncation=True, max_length=max_length
+        ).to(device)
 
-    return parser.parse_args()
+        if target_span is not None:
+            start_index = text.rfind(target_span)
+            start_token = len(tokenizer.encode(text[:start_index]))
+
+            labels = input_ids.clone()
+            labels[0, :start_token] = -100
+        else:
+            labels = input_ids.contiguous()
+
+        with torch.no_grad():
+            outputs = model(input_ids, labels=labels)
+        loss = outputs.loss
+        perplexity = torch.exp(loss)
+
+        return perplexity.to("cpu").item(), loss.to("cpu").item()
+
+    except:
+        return 0, 0
 
 
-def ifd_score(data: List[dict[str, str]]) -> List[Dict[str, Any]]:
+def ifd_score(
+    model,
+    tokenizer,
+    max_length: int,
+    device: str,
+    data: List[dict[str, Any]],
+    format: str,
+) -> List[Dict[str, Any]]:
     """
     Calculate the IFD score of a list of data.
 
     Args:
-        data (List[dict[str, str]]): A list of data, each data is a dict with keys "instruction", "input", and "output".
+        model: The model to compute the IFD score.
+        tokenizer: The tokenizer to encode the text.
+        max_length (int): Maximum length of the sequence.
+        device (str): Device to be used for training and inference.
+        data (List[dict[str, Any]]): A list of data, each data is a dict which format depends on the format argument.
+        format (str): The format of the data. It can be "alpaca" or "sharegpt". Defaults to "sharegpt".
 
     Returns:
-        List[Dict[str, Any]]: A list of data with keys "instruction", "input", "output", "ppl", and "loss".
+        List[Dict[str, Any]]: A list of data with the IFD score.
     """
 
     res = []
 
     for i in tqdm(range(len(data))):
         data_i = data[i]
-        instruct_i = data_i["instruction"]
-        output_i = data_i["output"]
-        input_i = data_i["input"] if "input" in data_i.keys() else ""
 
-        if input_i == "":
-            temp_dict = {"instruction": instruct_i}
-            prompt_to_use = prompt_on_input.format_map(temp_dict)
+        if format == "alpaca":
+            prompt_input = ALPACA_PROMPT["prompt_input"]
+            prompt_no_input = ALPACA_PROMPT["prompt_no_input"]
+
+            instruct_i = data_i["instruction"]
+            output_i = data_i["output"]
+            input_i = data_i["input"] if "input" in data_i.keys() else ""
+
+            if input_i == "":
+                temp_dict = {"instruction": instruct_i}
+                prompt_to_use = prompt_no_input.format_map(temp_dict)
+            else:
+                temp_dict = {"instruction": instruct_i, "input": input_i}
+                prompt_to_use = prompt_input.format_map(temp_dict)
+        elif format == "sharegpt":
+            prompt = SHAREGPT_PROMPT["prompt"]
+
+            convs_i = data_i["conversations"]
+            input_i = convs_i[0]["value"]
+            output_i = convs_i[1]["value"]
+            sys_i = data_i["system"]
+
+            prompt_to_use = prompt.format_map({"system": sys_i, "input": input_i})
         else:
-            temp_dict = {"instruction": instruct_i, "input": input_i}
-            prompt_to_use = prompt_input.format_map(temp_dict)
+            raise ValueError("Invalid format.")
 
         whole_text = prompt_to_use + output_i
         instruct_i = prompt_to_use
 
         ppl_out_alone, loss_out_alone = get_perplexity(
-            tokenizer, model, output_i, max_length, device
+            model, tokenizer, output_i, max_length, device
         )
         ppl_out_condition, loss_out_condition = get_perplexity(
-            tokenizer, model, whole_text, max_length, device, output_i
+            model, tokenizer, whole_text, max_length, device, output_i
         )
 
-        temp_data_i = {
-            "instruction": instruct_i,
-            "input": input_i,
-            "output": output_i,
-            "ppl": [ppl_out_alone, ppl_out_condition],
-            "loss": [loss_out_alone, loss_out_condition],
-        }
+        temp_data_i = data_i.copy()
+        temp_data_i["ppl"] = [ppl_out_alone, ppl_out_condition]
+        temp_data_i["loss"] = [loss_out_alone, loss_out_condition]
 
         res.append(temp_data_i)
 
     return res
-
-
-if __name__ == "__main__":
-    args = args_parse()
-    device = get_device()
-    max_length = args.max_length
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model_path, output_hidden_states=True
-    ).eval()
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-
-    prompt_on_input = PROMPT_DICT_NONE["prompt_no_input"]
-    prompt_input = PROMPT_DICT_NONE["prompt_input"]
-
-    data = load_json(args.data_path, args.start_idx, args.end_idx)
-
-    res = ifd_score(data)
-    print(res)
