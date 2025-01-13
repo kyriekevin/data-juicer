@@ -98,6 +98,26 @@ def read_files(
         yield file_name, content
 
 
+def write_file(output_path: Union[str, Path], data: List[Dict[str, Any]]) -> None:
+    """
+    Write data to a JSONL file.
+
+    Args:
+        output_path (Union[str, Path]): Path to write the file to.
+        data (List[Dict[str, Any]]): Data to write.
+
+    Returns:
+        None
+    """
+
+    output_path = Path(output_path).resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        for item in tqdm(data):
+            f.write(json.dumps(item, ensure_ascii=False) + "\n")
+
+
 def write_files(
     output_folder: Union[str, Path],
     version: str,

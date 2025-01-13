@@ -118,9 +118,15 @@ def ifd_score(
             model, tokenizer, whole_text, max_length, device, output_i
         )
 
+        info = {
+            "ppl": [ppl_out_alone, ppl_out_condition],
+            "loss": [loss_out_alone, loss_out_condition],
+            "ifd": ppl_out_condition / ppl_out_alone if ppl_out_alone != 0 else 0,
+        }
+
         temp_data_i = data_i.copy()
-        temp_data_i["ppl"] = [ppl_out_alone, ppl_out_condition]
-        temp_data_i["loss"] = [loss_out_alone, loss_out_condition]
+        temp_data_i["metadata"] = temp_data_i.get("metadata", {}).copy()
+        temp_data_i["metadata"].update(info)
 
         res.append(temp_data_i)
 
