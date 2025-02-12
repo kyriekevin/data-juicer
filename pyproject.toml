@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "data-juicer"
+name = "llm-data-recipe"
 version = "0.1.0"
 description = ""
 authors = ["kyriekevin <zyzkyrie@gmail.com>"]

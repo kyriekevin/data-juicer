@@ -1,6 +1,6 @@
-# Data Juicer
+# LLM Data Recipe
 
-Data Juicer is a project that collects and organizes open source data and refines it uniformly.
+LLM Data Recipe is a collection of data processing scripts for large language models. It provides a set of data processing methods for large language models, including data synthesis, data selection, and data conversion.
 
 ## Datasets
 
