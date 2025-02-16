@@ -1,9 +1,10 @@
 import glob
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import pandas as pd
+from datasets import load_dataset
 from tqdm import tqdm
 
 from src.utils.util import read_json, read_jsonl
@@ -176,3 +177,17 @@ def chunks(lst: List[Any], n: int) -> Iterator[List[Any]]:
 
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
+
+
+def load_custom_dataset(
+    base_dir: str | Path, dataset_name: str, config_name: Optional[str] = None, **kwargs
+):
+    base_path = Path(base_dir)
+    dataset_path = base_path / dataset_name
+
+    if not dataset_path.exists():
+        raise FileNotFoundError(f"Dataset path does not exist: {dataset_path}")
+    if not dataset_path.is_dir():
+        raise NotADirectoryError(f"Path is not a directory: {dataset_path}")
+
+    return load_dataset(str(dataset_path), config_name, **kwargs)
